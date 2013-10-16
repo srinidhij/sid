@@ -1,22 +1,27 @@
-from random import random,randint, choice
-import string
+#!/usr/bin/python
 
-def genip():
-    ipstr = ''
-    for i in range(4):
-        ipstr += str(choice(range(1,256)))+'.'
-    return ipstr[:-1]
+# Utitlites for simulation of datacenter networking
+
+# author Srinidhi J <srinidhij.21@gmail.com>
+
+# see LICENSE.md for copying
+
+__author__ = "Srinidhi J <srinidhij.21@gmail.com>"
+
+from random import random, randint, choice
+import string
 
 class VM(object):
     """Class to represent a virtual machine 
     inside a particular datacenter node 
     """
-    def __init__(self, rackid=None, vmid=None, ip=None):
+    def __init__(self, rackid, vmid=None, ip=None):
         super(VM, self).__init__()
 
-        if rackid is None:
-            pass
-            #randomly associate with an existing rack
+        if not isinstance(rackid,int):
+            raise ValueError, "rackid has to be an integer"
+
+        self.rackid = rackid
 
         if vmid is None:
             pass
@@ -25,6 +30,12 @@ class VM(object):
         if ip is None:
             pass
             #random ip
+
+    def genrandip(self):
+        ipstr = ''
+        for i in range(4):
+            ipstr += str(choice(range(1,256)))+'.'
+        return ipstr[:-1]
 
 class Rack(object):
     """Class to represent a datacenter node
@@ -63,8 +74,9 @@ class Rack(object):
             #raise
 
 def tests():
+    tvm = VM(rackid=0)
     for i in range(10):
-        print genip()
+        print tvm.genrandip()
        
 if __name__ == '__main__':
      tests() 
