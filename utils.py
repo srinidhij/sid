@@ -6,7 +6,8 @@
 
 # see LICENSE.md for copying
 
-__author__ = "Srinidhi J <srinidhij.21@gmail.com>"
+__authors__ = ["Srinidhi J <srinidhij.21@gmail.com>",
+               "ShriKrishna Holla <shrikrishna.holla@gmail.com>"]
 
 from random import random, randint, choice
 import string
