@@ -11,6 +11,8 @@ __authors__ = ["Srinidhi J <srinidhij.21@gmail.com>",
 
 from random import random, randint, choice
 import string
+from twowaydict import BiDiDict
+import itertools
 
 class VM(object):
     """Class to represent a virtual machine 
@@ -30,39 +32,55 @@ class VM(object):
     def getip(self):
         return '172.16'+'.'+str(self.rackid)+'.'+str(self.vmid)
 
+    def __str__(self):
+        print "R"+self.rackid+"VM"+self.vmid
+
 class Rack(object):
     """Class to represent a datacenter node
     """
 
     def __init__(self,rackid):
         self.rackid = rackid
-        self.vmids=[]
+        self.vmids={}
     def addvm(self):
         vmid = 0
-        if len(self.vmids) == 0:
+        try:
+            vmid = max(self.vmids.keys())+1
+        except ValueError:
             vmid = 0
-        else:
-            vmid = self.vmids[-1]['vmid']+1
 
         vm = VM(rackid=self.rackid, vmid=vmid)
 
         #add it to rack
-        vminfo = {}
+        # vminfo = {}
 
-        vminfo['vmid'] = vm.vmid
-        vminfo['ip'] = vm.ip
-        vminfo['rackid'] = vm.rackid
-        self.vmids.append(vminfo)
+        # vminfo['vmid'] = vm.vmid
+        # vminfo['ip'] = vm.ip
+        # vminfo['rackid'] = vm.rackid
+        # self.vmids.append(vminfo)
+        self.vmids[vm.vmid] = {
+            'id':vm.vmid,
+            'ip': vm.ip,
+            'rackid': vm.rackid,
+            'vmobj':vm
+        };
+        return vm
 
     def delvm(self, vmid): 
         if not isinstance(vmid, int):
             raise ValueError('vmid has to be int')
 
-        vmidlist = [vm['vmid'] for vm in self.vmids]
-        if not vmid in vmidlist:
-            raise ValueError('incorrect vmid. Not possible to delete')
+        # vmidlist = [vm['vmid'] for vm in self.vmids]
+        # if not vmid in vmidlist:
+        #     raise ValueError('incorrect vmid. Not possible to delete')
 
-        self.vmids = [vm for vm in self.vmids if vm['vmid'] != vmid]
+        # self.vmids = [vm for vm in self.vmids if vm['vmid'] != vmid]
+        try:
+            poppedvm = self.vmids.pop(vmid)
+            return poppedvm['ip']
+        except KeyError:
+            print "Specified vmid doesn't exist"
+            return None
 
     def __str__(self):
         return self.vmids.__str__()
@@ -90,15 +108,22 @@ class LoadBalancer(object):
         super(LoadBalancer, self).__init__()
         self.dc = DataCenter()
         self.racks = []
+        self.users = BiDiDict()
         if not no_of_racks or no_of_racks <= 0:
             raise ValueError("Number of racks has to be more than one")
         for x in xrange(0,no_of_racks):
             self.racks.append(self.dc.addrack())
 
     def newuser(self):
+        userid = 0
+        try: 
+            userid = max(self.users.keys()) + 1
+        except ValueError:
+            userid = 0
         suitable_rack = reduce(lambda rack1, rack2:
             rack1 if len(rack1.vmids) <= len(rack2.vmids) else rack2, self.racks)
-        suitable_rack.addvm()
+        newvm = suitable_rack.addvm()
+        self.users[userid] = newvm.ip
         print "User added to rack", suitable_rack.rackid
         
     def remuser(self, rackid, vmid):
@@ -109,31 +134,59 @@ class LoadBalancer(object):
             raise ValueError('There is more than one rack with the given rackid!')
         else:
             suitable_rack = suitable_rack[0]
-        suitable_rack.delvm(vmid)
-        print 'User quit from', suitable_rack.rackid
+        deleted_vm_ip = suitable_rack.delvm(vmid)
+        if deleted_vm_ip != None:
+            user_key = self.users[:deleted_vm_ip]
+            self.users.pop(user_key[0])
+            print 'User',user_key[0],' quit from rack', suitable_rack.rackid
+            self.balance_load()
+        else:
+            print "Couldn't remove user"
 
     def stats(self):
         for rack in self.racks:
             print 'Rack',rack.rackid,':',len(rack.vmids),'Users/VMs'
+        print self.users
+
+    def balancing_required(self):
+        vms_max = self.get_max_min('max')
+        vms_min = self.get_max_min('min')
+        return True if vms_max - vms_min > 1 else False
+
+    def get_max_min(self, maxormin):
+        if maxormin == 'max':
+            return max([len(rack.vmids) for rack in self.racks])
+        elif maxormin == 'min':
+            return min([len(rack.vmids) for rack in self.racks])
+        else:
+            raise ValueError('maxormin has to be either max or min')
+
+    def balance_load(self):
+        if self.balancing_required():
+            rackfrom = filter(lambda rack:
+                len(rack.vmids) == self.get_max_min('max'), self.racks)
+            rackto = filter(lambda rack:
+                len(rack.vmids) == self.get_max_min('min'), self.racks)
+            for rf, rt in itertools.izip(rackfrom,rackto):
+                targetvm = rf.vmids.itervalues().next()
+                original_ip = rf.delvm(targetvm['id'])
+                if original_ip != None:
+                    userkey = self.users[:original_ip]
+                    newvm = rt.addvm()
+                    self.users.replaceVal(original_ip, newvm.ip)
+                    print 'Mapped user', userkey, 'from', original_ip, 'to', newvm.ip
 
 def tests():
-    # d = DataCenter()
-    # r1 = d.addrack()
-    # for i in range(10):
-    #     r1.addvm()
-
-    # r2 = d.addrack()
-    # for i in range(10):
-    #     r2.addvm()
-
-    # print r1
-    # print '-'*80
-    # print r2
 
     lb = LoadBalancer(3)
-    lb.stats()
     for x in xrange(1,11):
         lb.newuser()
+    lb.stats()
+    lb.remuser(0,2)
+    lb.stats()
+    lb.remuser(0,1)
+    lb.stats()
+    lb.remuser(0,0)
     lb.stats()
        
 if __name__ == '__main__':
