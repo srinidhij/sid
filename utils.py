@@ -16,7 +16,6 @@ class VM(object):
     """Class to represent a virtual machine 
     inside a particular datacenter node 
     """
-    vmids = []
     def __init__(self, rackid, vmid):
         super(VM, self).__init__()
 
@@ -55,13 +54,15 @@ class Rack(object):
         vminfo['rackid'] = vm.rackid
         self.vmids.append(vminfo)
 
-    def delvm(self, vm): 
-        if not isinstance(vm,VM):
-            pass
-            #raise error
+    def delvm(self, vmid): 
+        if not isinstance(vmid, int):
+            raise ValueError('vmid has to be int')
 
-        #if not vm in data:
-            #raise
+        vmidlist = [vm['vmid'] for vm in self.vmids]
+        if not vmid in vmidlist:
+            raise ValueError('incorrect vmid. Not possible to delete')
+
+        self.vmids = [vm for vm in self.vmids if vm['vmid'] != vmid]
 
     def __str__(self):
         return self.vmids.__str__()
@@ -83,20 +84,57 @@ class DataCenter(object):
         rack = Rack(rackid)
         return rack
 
+class LoadBalancer(object):
+    """LoadBalancer"""
+    def __init__(self, no_of_racks):
+        super(LoadBalancer, self).__init__()
+        self.dc = DataCenter()
+        self.racks = []
+        if not no_of_racks or no_of_racks <= 0:
+            raise ValueError("Number of racks has to be more than one")
+        for x in xrange(0,no_of_racks):
+            self.racks.append(self.dc.addrack())
+
+    def newuser(self):
+        suitable_rack = reduce(lambda rack1, rack2:
+            rack1 if len(rack1.vmids) <= len(rack2.vmids) else rack2, self.racks)
+        suitable_rack.addvm()
+        print "User added to rack", suitable_rack.rackid
+        
+    def remuser(self, rackid, vmid):
+        suitable_rack = filter(lambda rack: rack.rackid == rackid, self.racks)
+        if len(suitable_rack) == 0:
+            raise ValueError('There are no racks with the given rackid')
+        elif len(suitable_rack) > 1:
+            raise ValueError('There is more than one rack with the given rackid!')
+        else:
+            suitable_rack = suitable_rack[0]
+        suitable_rack.delvm(vmid)
+        print 'User quit from', suitable_rack.rackid
+
+    def stats(self):
+        for rack in self.racks:
+            print 'Rack',rack.rackid,':',len(rack.vmids),'Users/VMs'
 
 def tests():
-    d = DataCenter()
-    r1 = d.addrack()
-    for i in range(10):
-        r1.addvm()
+    # d = DataCenter()
+    # r1 = d.addrack()
+    # for i in range(10):
+    #     r1.addvm()
 
-    r2 = d.addrack()
-    for i in range(10):
-        r2.addvm()
+    # r2 = d.addrack()
+    # for i in range(10):
+    #     r2.addvm()
 
-    print r1
-    print '-'*80
-    print r2
+    # print r1
+    # print '-'*80
+    # print r2
+
+    lb = LoadBalancer(3)
+    lb.stats()
+    for x in xrange(1,11):
+        lb.newuser()
+    lb.stats()
        
 if __name__ == '__main__':
      tests() 
