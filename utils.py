@@ -24,12 +24,18 @@ class VM(object):
         if not isinstance(rackid,int):
             raise ValueError, "rackid has to be an integer"
 
+        # Assigning an id to the Virtual Machine
         self.vmid = vmid
+
+        # The id of the rack to which this VM belongs
         self.rackid = rackid
+
+        # The IP address of this VM
         self.ip = self.getip()
 
 
     def getip(self):
+        # TODO: Get ip of the docker container
         return '172.16'+'.'+str(self.rackid)+'.'+str(self.vmid)
 
     def __str__(self):
@@ -40,11 +46,16 @@ class Rack(object):
     """
 
     def __init__(self,rackid):
+        # The unique id that identifies this rack
         self.rackid = rackid
+        # A dictionary of the id and info of VMs that belong to this rack
         self.vmids={}
+
     def addvm(self):
+        """Add a VM to this rack"""
         vmid = 0
         try:
+            # TODO: Get VMid when creating a docker container
             vmid = max(self.vmids.keys())+1
         except ValueError:
             vmid = 0
@@ -52,12 +63,7 @@ class Rack(object):
         vm = VM(rackid=self.rackid, vmid=vmid)
 
         #add it to rack
-        # vminfo = {}
-
-        # vminfo['vmid'] = vm.vmid
-        # vminfo['ip'] = vm.ip
-        # vminfo['rackid'] = vm.rackid
-        # self.vmids.append(vminfo)
+        # Info of the VM that will be stored in this rack
         self.vmids[vm.vmid] = {
             'id':vm.vmid,
             'ip': vm.ip,
@@ -70,12 +76,8 @@ class Rack(object):
         if not isinstance(vmid, int):
             raise ValueError('vmid has to be int')
 
-        # vmidlist = [vm['vmid'] for vm in self.vmids]
-        # if not vmid in vmidlist:
-        #     raise ValueError('incorrect vmid. Not possible to delete')
-
-        # self.vmids = [vm for vm in self.vmids if vm['vmid'] != vmid]
         try:
+            # Remove the vm info from the dictionary of vms of this rack
             poppedvm = self.vmids.pop(vmid)
             return poppedvm['ip']
         except KeyError:
@@ -88,10 +90,12 @@ class Rack(object):
 class DataCenter(object):
 
     def __init__(self):
+        # List of ids of all the racks in this container
         self.rackids = []
         super(DataCenter, self).__init__()
 
     def addrack(self):
+        """Method to add racks to the DataCenter. Ids are created sequentially"""
         rackid = 0
         if len(self.rackids) == 0:
             rackid = 0
@@ -103,11 +107,14 @@ class DataCenter(object):
         return rack
 
 class LoadBalancer(object):
-    """LoadBalancer"""
+    """The class containing Methods that balance the load between different racks of the DataCenter"""
     def __init__(self, no_of_racks):
         super(LoadBalancer, self).__init__()
+        # Variable that holds the datacenter object
         self.dc = DataCenter()
+        # List of ALL the racks
         self.racks = []
+        # Bi directional dictionary of all users and their ips
         self.users = BiDiDict()
         if not no_of_racks or no_of_racks <= 0:
             raise ValueError("Number of racks has to be more than one")

@@ -78,11 +78,9 @@ class BiDiDict(dict):
 
         # inverse lookup (by val), e.g. b[:val]
         assert stop is not None
-        def _checkVal(kvtuple):
-            if kvtuple[1] == stop:
-                return kvtuple[0]
 
-        return tuple([key for key, val in filter(_checkVal, dict.items(self))])
+        return tuple([key for key, val in filter(lambda kvtuple:
+            kvtuple[1] == stop, dict.items(self))])
 
     def replaceKey(self, oldKey, newKey):
         if not oldKey in dict.keys(self):
