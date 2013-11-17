@@ -1,4 +1,7 @@
 import web
+from utils import LoadBalancer as LB
+
+lb = LB(3)
         
 urls = (
     '/(.*)', 'hello'

@@ -13,30 +13,33 @@ from random import random, randint, choice
 import string
 from twowaydict import BiDiDict
 import itertools
+import dockermgr as dkmgr
 
 class VM(object):
     """Class to represent a virtual machine 
     inside a particular datacenter node 
     """
-    def __init__(self, rackid, vmid):
+    def __init__(self, rackid):
         super(VM, self).__init__()
 
         if not isinstance(rackid,int):
             raise ValueError, "rackid has to be an integer"
 
+        # Create a docker container
+        self.container = dkmgr.create_container()
+
         # Assigning an id to the Virtual Machine
-        self.vmid = vmid
+        self.vmid = dkmgr.get_container_id(self.container)
 
         # The id of the rack to which this VM belongs
         self.rackid = rackid
 
         # The IP address of this VM
-        self.ip = self.getip()
+        self.ip = dkmgr.get_container_ip(self.container)
 
 
     def getip(self):
-        # TODO: Get ip of the docker container
-        return '172.16'+'.'+str(self.rackid)+'.'+str(self.vmid)
+        return self.ip
 
     def __str__(self):
         print "R"+self.rackid+"VM"+self.vmid
@@ -53,28 +56,29 @@ class Rack(object):
 
     def addvm(self):
         """Add a VM to this rack"""
-        vmid = 0
-        try:
-            # TODO: Get VMid when creating a docker container
-            vmid = max(self.vmids.keys())+1
-        except ValueError:
-            vmid = 0
+        # vmid = 0
+        # try:
+        #     # TODO: Get VMid when creating a docker container
+        #     vmid = max(self.vmids.keys())+1
+        # except ValueError:
+        #     vmid = 0
 
-        vm = VM(rackid=self.rackid, vmid=vmid)
+        vm = VM(rackid=self.rackid)
 
         #add it to rack
         # Info of the VM that will be stored in this rack
         self.vmids[vm.vmid] = {
-            'id':vm.vmid,
+            'id': vm.vmid,
             'ip': vm.ip,
             'rackid': vm.rackid,
-            'vmobj':vm
+            'vmlxc': vm.container,
+            'vmobj': vm
         };
         return vm
 
     def delvm(self, vmid): 
-        if not isinstance(vmid, int):
-            raise ValueError('vmid has to be int')
+        if not isinstance(vmid, str):
+            raise ValueError('vmid has to be str')
 
         try:
             # Remove the vm info from the dictionary of vms of this rack
@@ -121,13 +125,13 @@ class LoadBalancer(object):
         for x in xrange(0,no_of_racks):
             self.racks.append(self.dc.addrack())
 
-    def newuser(self):
+    def newuser(self, userid):
         userid = 0
-        try: 
-            # Create user
-            userid = max(self.users.keys()) + 1
-        except ValueError:
-            userid = 0
+        # try: 
+        #     # Create user
+        #     userid = max(self.users.keys()) + 1
+        # except ValueError:
+        #     userid = 0
         # Determine suitable rack to spawn the VM in
         suitable_rack = reduce(lambda rack1, rack2:
             rack1 if len(rack1.vmids) <= len(rack2.vmids) else rack2, self.racks)
