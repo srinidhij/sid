@@ -15,3 +15,6 @@ def get_container_ip(container):
 def get_container_id(container):
 	info = client.inspect_container(container)
 	return info['Config']['Hostname']
+
+def stop_container(container):
+	client.stop(container, timeout=10)
