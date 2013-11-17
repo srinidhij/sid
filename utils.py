@@ -124,16 +124,20 @@ class LoadBalancer(object):
     def newuser(self):
         userid = 0
         try: 
+            # Create user
             userid = max(self.users.keys()) + 1
         except ValueError:
             userid = 0
+        # Determine suitable rack to spawn the VM in
         suitable_rack = reduce(lambda rack1, rack2:
             rack1 if len(rack1.vmids) <= len(rack2.vmids) else rack2, self.racks)
         newvm = suitable_rack.addvm()
+        # Add the user to the dictionary
         self.users[userid] = newvm.ip
         print "User added to rack", suitable_rack.rackid
         
     def remuser(self, rackid, vmid):
+        # Get the rackid of the rack that contains the VM which runs the server that is serving the user who just quit
         suitable_rack = filter(lambda rack: rack.rackid == rackid, self.racks)
         if len(suitable_rack) == 0:
             raise ValueError('There are no racks with the given rackid')
@@ -141,8 +145,10 @@ class LoadBalancer(object):
             raise ValueError('There is more than one rack with the given rackid!')
         else:
             suitable_rack = suitable_rack[0]
+        # Stop the VM
         deleted_vm_ip = suitable_rack.delvm(vmid)
         if deleted_vm_ip != None:
+            # Get the key based on the value
             user_key = self.users[:deleted_vm_ip]
             self.users.pop(user_key[0])
             print 'User',user_key[0],' quit from rack', suitable_rack.rackid
@@ -169,17 +175,24 @@ class LoadBalancer(object):
             raise ValueError('maxormin has to be either max or min')
 
     def balance_load(self):
+        # Check whether balancing is required
         if self.balancing_required():
+            # The rackids of the heavily loaded rack
             rackfrom = filter(lambda rack:
                 len(rack.vmids) == self.get_max_min('max'), self.racks)
+            # The rackids of the lightly loaded rack
             rackto = filter(lambda rack:
                 len(rack.vmids) == self.get_max_min('min'), self.racks)
             for rf, rt in itertools.izip(rackfrom,rackto):
                 targetvm = rf.vmids.itervalues().next()
+                # Delete the VM in the heavily loaded rack
                 original_ip = rf.delvm(targetvm['id'])
                 if original_ip != None:
+                    # Get the user key
                     userkey = self.users[:original_ip]
+                    # Create a new VM in an appropriate rack (lightly used)
                     newvm = rt.addvm()
+                    # Replace old ip entry with new one
                     self.users.replaceVal(original_ip, newvm.ip)
                     print 'Mapped user', userkey, 'from', original_ip, 'to', newvm.ip
 
