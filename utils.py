@@ -79,7 +79,7 @@ class Rack(object):
         try:
             # Remove the vm info from the dictionary of vms of this rack
             poppedvm = self.vmids.pop(vmid)
-            return poppedvm['ip']
+            return poppedvm
         except KeyError:
             print "Specified vmid doesn't exist"
             return None
@@ -130,10 +130,11 @@ class LoadBalancer(object):
         suitable_rack = reduce(lambda rack1, rack2:
             rack1 if len(rack1.vmids) <= len(rack2.vmids) else rack2, self.racks)
         newvm = suitable_rack.addvm()
-        self.users[userid] = newvm.ip
+        self.users[userid] = (newvm.rackid, newvm.vmid)
         print "User added to rack", suitable_rack.rackid
         
-    def remuser(self, rackid, vmid):
+    def remuser(self, userid):
+        rackid, vmid = self.users[userid]
         suitable_rack = filter(lambda rack: rack.rackid == rackid, self.racks)
         if len(suitable_rack) == 0:
             raise ValueError('There are no racks with the given rackid')
@@ -141,19 +142,23 @@ class LoadBalancer(object):
             raise ValueError('There is more than one rack with the given rackid!')
         else:
             suitable_rack = suitable_rack[0]
-        deleted_vm_ip = suitable_rack.delvm(vmid)
-        if deleted_vm_ip != None:
-            user_key = self.users[:deleted_vm_ip]
-            self.users.pop(user_key[0])
-            print 'User',user_key[0],' quit from rack', suitable_rack.rackid
+        deleted_vm = suitable_rack.delvm(vmid)
+        if deleted_vm != None:
+            self.users.pop(userid)
+            print 'User',userid,' quit from rack', suitable_rack.rackid
             self.balance_load()
         else:
             print "Couldn't remove user"
 
     def stats(self):
+        json = []
         for rack in self.racks:
             print 'Rack',rack.rackid,':',len(rack.vmids),'Users/VMs'
-        print self.users
+            json.append([])
+            for vm, vminfo in rack.vmids.items():
+                json[-1].append('user'+self.users[:(vminfo['rackid'], vminfo['id'])][0].__str__())
+        print json
+        return json
 
     def balancing_required(self):
         vms_max = self.get_max_min('max')
@@ -176,12 +181,12 @@ class LoadBalancer(object):
                 len(rack.vmids) == self.get_max_min('min'), self.racks)
             for rf, rt in itertools.izip(rackfrom,rackto):
                 targetvm = rf.vmids.itervalues().next()
-                original_ip = rf.delvm(targetvm['id'])
-                if original_ip != None:
-                    userkey = self.users[:original_ip]
+                original_vm = rf.delvm(targetvm['id'])
+                if original_vm != None:
+                    userkey = self.users[:(original_vm['rackid'], original_vm['id'])]
                     newvm = rt.addvm()
-                    self.users.replaceVal(original_ip, newvm.ip)
-                    print 'Mapped user', userkey, 'from', original_ip, 'to', newvm.ip
+                    self.users.replaceVal((original_vm['rackid'], original_vm['id']), (newvm.rackid, newvm.vmid))
+                    print 'Mapped user', userkey, 'from', original_vm['ip'], 'to', newvm.ip
 
 def tests():
 
@@ -189,11 +194,11 @@ def tests():
     for x in xrange(1,11):
         lb.newuser()
     lb.stats()
-    lb.remuser(0,2)
+    lb.remuser(0)
     lb.stats()
-    lb.remuser(0,1)
+    lb.remuser(3)
     lb.stats()
-    lb.remuser(0,0)
+    lb.remuser(6)
     lb.stats()
        
 if __name__ == '__main__':

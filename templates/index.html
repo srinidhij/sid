@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Emulating Datacenter VMs</title>
+    <script type="text/javascript" src="/static/jquery.min.js"></script>
+    <script type="text/javascript" src="/static/d3.v2.min.js"></script>
+    <script type="text/javascript" src="/static/d3.geom.min.js"></script>
+    <script type="text/javascript" src="/static/d3.layout.min.js"></script>
+    <style type="text/css">
+
+circle {
+  stroke-width: 1.5px;
+}
+
+line {
+  stroke: #999;
+}
+
+    </style>
+    <script type="text/javascript">
+    function addUser () {
+      $$(".adduser").text("Processing...");
+      $$.ajax({
+        method  : 'GET',
+        url     : '/addNode',
+        dataType: 'json',
+        success : function(data) {
+          $$(".adduser").text("Add User");
+          recompute(data);
+        },
+        error   : function() {alert('ajax error!')}
+      });
+    }
+    function init () {
+      $$.ajax({
+        method  : 'GET',
+        url     : '/getInfo',
+        dataType: 'json',
+        success : function(data) {
+          recompute(data);
+        },
+        error   : function() {alert('ajax error!')}
+      });
+    }
+    </script>
+  </head>
+  <body onload="init()">
+    <button class="adduser" onclick="addUser()">Add user</button>
+
+    <script type="text/javascript">
+    function remuser (name) {
+      $$.ajax({
+        method  : 'GET',
+        url     : '/delNode?userid='+name,
+        dataType: 'json',
+        success : function(data) {
+          recompute(data);
+        },
+        error   : function() {alert('ajax error!')}
+      });
+    }
+    </script>
+  <script src="/static/force_directed_tree.js"></script>
+  <script type="text/javascript">
+
+  function recompute (datacenter) {
+        //   var datacenter =  [
+        //   ["user0", "user3", "user6", "user9"],
+        //   ["user1", "user4", "user7"],
+        //   ["user2", "user5", "user8"]
+        // ]
+
+      window.data = {
+        "nodes": [
+          {"name": "datacenter"},
+          {"name": "rack0"},
+          {"name": "rack1"},
+          {"name": "rack2"}
+        ],
+        "links": [
+          {"source": 0, "target": 1},
+          {"source": 0, "target": 2},
+          {"source": 0, "target": 3}
+        ]
+      }
+
+      datacenter.forEach(function(rack, rackindex) {
+        rack.forEach(function(user, userindex) {
+          data.nodes.push({"name": user});
+        });
+      });
+
+      var config = {};
+
+      data.nodes.forEach(function(node, index) {
+        config[node.name] = index;
+      });
+
+      datacenter.forEach(function(rack, rackindex) {
+        rack.forEach(function(user, userindex) {
+          data.links.push({
+            "source": config["rack"+rackindex.toString()],
+            "target": config[user]
+          });
+        });
+      });
+
+      loadGraph(window.data);
+  }
+  </script>
+</html>
