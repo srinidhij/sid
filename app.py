@@ -34,7 +34,8 @@ class addNode:
 class delNode:
     def GET(self):
         user_data = web.input()
-        lb.remuser(int(user_data.userid.replace('user','')))
+        if 'user' in user_data.userid:
+            lb.remuser(int(user_data.userid.replace('user','')))
         web.header('Content-Type', 'application/json')
         return json.dumps(lb.stats())
 
